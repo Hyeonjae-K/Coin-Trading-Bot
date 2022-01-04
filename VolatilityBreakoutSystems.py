@@ -1,7 +1,6 @@
 import pyupbit
 import time
 import datetime
-from threading import Thread
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import Secret
@@ -9,7 +8,7 @@ import Secret
 
 def update_target():
     global target, is_updated, order_uuid
-    print('update_target')
+    print(datetime.datetime.now(), 'RUN update_target()')
 
     while True:
         df = pyupbit.get_ohlcv("KRW-BTC", count=11)
@@ -17,10 +16,9 @@ def update_target():
         today_date = str(datetime.datetime.now()).split()[0]
         if df_date == today_date:
             break
-        time.sleep(1)
+        time.sleep(0.5)
     df['range'] = [df['high'][i] - df['low'][i] for i in range(len(df))]
     upbit.sell_market_order("KRW-BTC", upbit.get_balance("KRW-BTC"))
-    upbit.cancel_order(order_uuid)
 
     weight = max_weight = max_profit_rate = 0
     while weight < 1:
@@ -44,17 +42,18 @@ def update_target():
 
 
 sched = BackgroundScheduler()
-sched.add_job(update_target, 'cron', hour='9')
+sched.add_job(update_target, 'cron', hour='8', minute='59')
 sched.start()
+
 upbit = pyupbit.Upbit(Secret.access, Secret.secret)
-target = is_updated = order_uuid = False
+target = is_updated = False
 while True:
     if is_updated:
         now_price = pyupbit.get_current_price("KRW-BTC")
         if now_price >= target:
-            is_updated = False
             krw_balance = upbit.get_balance("KRW")
             bill = upbit.buy_market_order("KRW-BTC", krw_balance)
-            order_uuid = bill['uuid']
+            is_updated = False
+            print(datetime.datetime.now(), 'target:', target, 'bill:', bill)
 
     time.sleep(0.5)
